@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Movie Catalog</title>
+  <style>
+    :root { --bg:#0b0c10; --card:#151720; --muted:#9aa4b2; --text:#e8edf5; --line:#252a36; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:18px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:rgba(11,12,16,.95); backdrop-filter: blur(6px); z-index:5; }
+    h1 { margin:0; font-size:18px; font-weight:800; letter-spacing:.2px; }
+    .wrap { max-width:1100px; margin:0 auto; padding:16px; }
+    .grid { display:grid; gap:12px; }
+    @media (min-width: 980px) { .grid { grid-template-columns: 420px 1fr; } }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex: 1 1 auto; }
+    label { display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input, textarea, select {
+      width:100%; padding:10px 10px; border-radius:12px; border:1px solid var(--line);
+      background:#0f1118; color:var(--text); outline:none;
+    }
+    textarea { min-height:84px; resize:vertical; }
+    button {
+      border:0; border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer;
+      background:#ffffff; color:#0b0c10;
+    }
+    button.secondary { background:#2a3140; color:var(--text); }
+    button.danger { background:#b00020; color:white; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .pillbar { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    .pill { padding:6px 10px; border-radius:999px; border:1px solid var(--line); background:#0f1118; cursor:pointer; color:var(--text); font-size:12px; }
+    .pill.active { background:#ffffff; color:#0b0c10; border-color:#ffffff; }
+    .muted { color:var(--muted); }
+    .list { display:grid; gap:10px; margin-top:12px; }
+    .item { padding:12px; border-radius:14px; border:1px solid var(--line); background:#0f1118; }
+    .item h3 { margin:0 0 6px; font-size:15px; }
+    .item .meta { font-size:12px; color:var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+    .item p { margin:10px 0 0; color:#c9d2e0; font-size:13px; line-height:1.35; }
+    .hr { height:1px; background:var(--line); margin:12px 0; }
+    .status { font-size:12px; color:var(--muted); margin-top:10px; }
+    .rightTop { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+    .small { font-size:12px; }
+    code { background:#0f1118; padding:2px 6px; border-radius:8px; border:1px solid var(--line); }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap row" style="align-items:center;">
+    <div style="flex:1 1 260px;">
+      <h1>Movie Catalog</h1>
+      <div class="muted small">Local catalog saved in your browser (localStorage). Optional TMDB enrichment.</div>
+    </div>
+    <div class="rightTop" style="flex:1 1 260px;">
+      <button class="secondary" id="btnExport">Export CSV</button>
+      <button class="secondary" id="btnBackup">Backup JSON</button>
+      <button class="secondary" id="btnRestore">Restore JSON</button>
+      <input type="file" id="restoreFile" accept="application/json" style="display:none" />
+    </div>
+  </div>
+</header>
+
+<main class="wrap grid">
+  <!-- Left: Add / Edit -->
+  <section class="card">
+    <h2 style="margin:0 0 6px; font-size:16px;">Add / Edit Movie</h2>
+    <div class="muted small">Common catalog fields: title, year, genres, synopsis, UPC, runtime, shelf, rating, notes.</div>
+
+    <div class="hr"></div>
+
+    <label>TMDB API Key (optional)</label>
+    <input id="tmdbKey" placeholder="Paste your TMDB API key to enable title search enrichment" />
+
+    <div class="row">
+      <div style="flex:2 1 220px;">
+        <label>Title</label>
+        <input id="title" placeholder="e.g., The Matrix" />
+      </div>
+      <div style="flex:1 1 120px;">
+        <label>Year</label>
+        <input id="year" placeholder="1999" inputmode="numeric" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1 1 180px;">
+        <label>Genre(s) (comma-separated)</label>
+        <input id="genres" placeholder="Action, Sci-Fi" />
+      </div>
+      <div style="flex:1 1 120px;">
+        <label>Runtime</label>
+        <input id="runtime" placeholder="136 min" />
+      </div>
+    </div>
+
+    <label>Synopsis</label>
+    <textarea id="synopsis" placeholder="Short synopsis/overview..."></textarea>
+
+    <div class="row">
+      <div style="flex:1 1 160px;">
+        <label>UPC (optional)</label>
+        <input id="upc" placeholder="Scan/enter UPC" inputmode="numeric" />
+      </div>
+      <div style="flex:1 1 160px;">
+        <label>Shelf / Location</label>
+        <input id="shelf" placeholder="Shelf 3, Row B" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1 1 140px;">
+        <label>Your Rating (0–5)</label>
+        <input id="rating" placeholder="4.5" inputmode="decimal" />
+      </div>
+      <div style="flex:1 1 220px;">
+        <label>Notes</label>
+        <input id="notes" placeholder="Any personal notes..." />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <button id="btnSave">Save</button>
+      <button class="secondary" id="btnClear">Clear</button>
+      <button class="secondary" id="btnTmdbSearch">Search TMDB by Title</button>
+      <button class="secondary" id="btnUpcLookup">Lookup by UPC (stub)</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="hr"></div>
+
+    <div class="muted small">
+      Notes:
+      <ul>
+        <li><b>TMDB enrichment</b> will fill title/year/genres/runtime/synopsis when possible.</li>
+        <li><b>UPC lookup</b> is stubbed because UPC→movie title requires a separate UPC data source.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Right: Library -->
+  <section class="card">
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex:1 1 240px;">
+        <h2 style="margin:0 0 6px; font-size:16px;">Library</h2>
+        <div class="muted small">Search + filter by genre. Click a movie to edit.</div>
+      </div>
+      <div style="flex:1 1 280px;">
+        <label>Search</label>
+        <input id="search" placeholder="Search title or UPC..." />
+      </div>
+    </div>
+
+    <div class="pillbar" id="genrePills"></div>
+
+    <div class="list" id="movieList"></div>
+    <div class="muted small" id="emptyState" style="margin-top:10px; display:none;">
+      No movies yet. Add one on the left.
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------------------------
+   Storage + Data Model
+---------------------------- */
+const STORAGE_KEY = "movie_catalog_v1";
+
+function loadCatalog() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCatalog(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+function normalizeGenres(s) {
+  return (s || "")
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function nowISO() {
+  return new Date().toISOString();
+}
+
+/* ---------------------------
+   TMDB Helpers (Optional)
+---------------------------- */
+async function tmdbFetch(path, apiKey) {
+  const base = "https://api.themoviedb.org/3";
+  const url = base + path + (path.includes("?") ? "&" : "?") + "api_key=" + encodeURIComponent(apiKey);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("TMDB error " + res.status);
+  return res.json();
+}
+
+async function tmdbSearchTitle(title, apiKey) {
+  const q = encodeURIComponent(title);
+  const data = await tmdbFetch(`/search/movie?query=${q}&include_adult=false`, apiKey);
+  return data.results || [];
+}
+
+async function tmdbGetDetails(id, apiKey) {
+  const data = await tmdbFetch(`/movie/${id}`, apiKey);
+  const year = (data.release_date || "").slice(0,4);
+  const genres = (data.genres || []).map(g => g.name);
+  const runtime = data.runtime ? `${data.runtime} min` : "";
+  return {
+    tmdbId: String(data.id),
+    title: data.title || "",
+    year,
+    genres,
+    runtime,
+    synopsis: data.overview || ""
+  };
+}
+
+/* ---------------------------
+   UI State
+---------------------------- */
+let catalog = loadCatalog();
+let activeGenre = "";
+let editingId = null;
+
+const el = (id) => document.getElementById(id);
+
+function setStatus(msg) {
+  el("status").textContent = msg || "";
+}
+
+function clearForm() {
+  editingId = null;
+  el("title").value = "";
+  el("year").value = "";
+  el("genres").value = "";
+  el("runtime").value = "";
+  el("synopsis").value = "";
+  el("upc").value = "";
+  el("shelf").value = "";
+  el("rating").value = "";
+  el("notes").value = "";
+  setStatus("");
+}
+
+function fillForm(movie) {
+  editingId = movie.id;
+  el("title").value = movie.title || "";
+  el("year").value = movie.year || "";
+  el("genres").value = (movie.genres || []).join(", ");
+  el("runtime").value = movie.runtime || "";
+  el("synopsis").value = movie.synopsis || "";
+  el("upc").value = movie.upc || "";
+  el("shelf").value = movie.shelf || "";
+  el("rating").value = movie.rating != null ? String(movie.rating) : "";
+  el("notes").value = movie.notes || "";
+}
+
+function readForm() {
+  const ratingRaw = el("rating").value.trim();
+  const rating = ratingRaw ? Number(ratingRaw) : null;
+  return {
+    title: el("title").value.trim(),
+    year: el("year").value.trim(),
+    genres: normalizeGenres(el("genres").value),
+    runtime: el("runtime").value.trim(),
+    synopsis: el("synopsis").value.trim(),
+    upc: el("upc").value.trim(),
+    shelf: el("shelf").value.trim(),
+    rating: (ratingRaw && !Number.isFinite(rating)) ? null : rating,
+    notes: el("notes").value.trim()
+  };
+}
+
+function getAllGenres(list) {
+  const s = new Set();
+  list.forEach(m => (m.genres || []).forEach(g => s.add(g)));
+  return Array.from(s).sort();
+}
+
+function renderGenrePills() {
+  const wrap = el("genrePills");
+  wrap.innerHTML = "";
+  const all = getAllGenres(catalog);
+
+  const makePill = (label, value) => {
+    const b = document.createElement("button");
+    b.className = "pill" + (activeGenre === value ? " active" : "");
+    b.textContent = label;
+    b.onclick = () => { activeGenre = value; render(); };
+    return b;
+  };
+
+  wrap.appendChild(makePill("All", ""));
+  all.forEach(g => wrap.appendChild(makePill(g, g)));
+}
+
+function matches(movie, q, genre) {
+  const query = (q || "").trim().toLowerCase();
+  const inQuery =
+    !query ||
+    (movie.title || "").toLowerCase().includes(query) ||
+    (movie.upc || "").includes(query);
+
+  const inGenre = !genre || (movie.genres || []).includes(genre);
+
+  return inQuery && inGenre;
+}
+
+function renderList() {
+  const listEl = el("movieList");
+  listEl.innerHTML = "";
+
+  const q = el("search").value || "";
+  const items = catalog
+    .slice()
+    .sort((a,b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
+    .filter(m => matches(m, q, activeGenre));
+
+  el("emptyState").style.display = catalog.length ? "none" : "block";
+
+  items.forEach(m => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <h3>${escapeHtml(m.title || "(Untitled)")}${m.year ? " ("+escapeHtml(m.year)+")" : ""}</h3>
+      <div class="meta">
+        <span>${escapeHtml((m.genres || []).join(", ") || "No genres")}</span>
+        ${m.upc ? `<span>UPC: ${escapeHtml(m.upc)}</span>` : ""}
+        ${m.runtime ? `<span>${escapeHtml(m.runtime)}</span>` : ""}
+        ${m.rating != null ? `<span>Rating: ${escapeHtml(String(m.rating))}</span>` : ""}
+        ${m.shelf ? `<span>Shelf: ${escapeHtml(m.shelf)}</span>` : ""}
+      </div>
+      ${m.synopsis ? `<p>${escapeHtml(trunc(m.synopsis, 220))}</p>` : ""}
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" data-action="edit">Edit</button>
+        <button class="danger" data-action="delete">Delete</button>
+      </div>
+    `;
+
+    div.querySelector('[data-action="edit"]').onclick = () => {
+      fillForm(m);
+      setStatus("Editing: " + (m.title || ""));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    div.querySelector('[data-action="delete"]').onclick = () => {
+      if (!confirm(`Delete "${m.title}"?`)) return;
+      catalog = catalog.filter(x => x.id !== m.id);
+      saveCatalog(catalog);
+      if (editingId === m.id) clearForm();
+      render();
+    };
+
+    listEl.appendChild(div);
+  });
+}
+
+function render() {
+  renderGenrePills();
+  renderList();
+}
+
+/* ---------------------------
+   Export / Backup / Restore
+---------------------------- */
+function toCsvValue(v) {
+  const s = String(v ?? "");
+  return `"${s.replaceAll('"','""')}"`;
+}
+
+function exportCsv() {
+  const header = ["title","year","runtime","genres","synopsis","tmdbId","upc","shelf","rating","notes","createdAt"].join(",");
+  const lines = catalog.map(m => [
+    toCsvValue(m.title),
+    toCsvValue(m.year),
+    toCsvValue(m.runtime),
+    toCsvValue(JSON.stringify(m.genres || [])),
+    toCsvValue(m.synopsis),
+    toCsvValue(m.tmdbId || ""),
+    toCsvValue(m.upc || ""),
+    toCsvValue(m.shelf || ""),
+    toCsvValue(m.rating != null ? m.rating : ""),
+    toCsvValue(m.notes || ""),
+    toCsvValue(m.createdAt || "")
+  ].join(","));
+  const csv = [header, ...lines].join("\n");
+  downloadBlob(new Blob([csv], {type:"text/csv"}), "movie_catalog_export.csv");
+}
+
+function backupJson() {
+  const json = JSON.stringify(catalog, null, 2);
+  downloadBlob(new Blob([json], {type:"application/json"}), "movie_catalog_backup.json");
+}
+
+function restoreJson(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data)) throw new Error("Backup JSON must be an array");
+      // light validation
+      catalog = data.map(x => ({ ...x, id: x.id || uid(), createdAt: x.createdAt || nowISO() }));
+      saveCatalog(catalog);
+      clearForm();
+      setStatus("Restored backup.");
+      render();
+    } catch (e) {
+      alert("Restore failed: " + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------------------
+   Actions
+---------------------------- */
+el("btnSave").onclick = () => {
+  const data = readForm();
+  if (!data.title) { setStatus("Title is required."); return; }
+
+  if (editingId) {
+    catalog = catalog.map(m => m.id === editingId ? { ...m, ...data } : m);
+    setStatus("Saved changes.");
+  } else {
+    const movie = {
+      id: uid(),
+      createdAt: nowISO(),
+      tmdbId: "",
+      ...data
+    };
+    catalog.unshift(movie);
+    setStatus("Saved movie.");
+  }
+
+  saveCatalog(catalog);
+  render();
+};
+
+el("btnClear").onclick = clearForm;
+
+el("search").addEventListener("input", () => renderList());
+
+el("btnExport").onclick = exportCsv;
+el("btnBackup").onclick = backupJson;
+
+el("btnRestore").onclick = () => el("restoreFile").click();
+el("restoreFile").addEventListener("change", (e) => {
+  const f = e.target.files?.[0];
+  if (f) restoreJson(f);
+  e.target.value = "";
+});
+
+el("btnTmdbSearch").onclick = async () => {
+  const apiKey = el("tmdbKey").value.trim();
+  const title = el("title").value.trim();
+  if (!apiKey) { setStatus("Add a TMDB API key first."); return; }
+  if (!title) { setStatus("Enter a title first."); return; }
+
+  try {
+    setStatus("Searching TMDB...");
+    const results = await tmdbSearchTitle(title, apiKey);
+    if (!results.length) { setStatus("No TMDB matches."); return; }
+
+    // Pick the first result. You can enhance this by showing a chooser list.
+    setStatus("Fetching details...");
+    const details = await tmdbGetDetails(results[0].id, apiKey);
+
+    // Fill form with enriched fields (do not overwrite UPC/shelf/notes unless empty)
+    const current = readForm();
+    el("title").value = details.title || current.title;
+    el("year").value = details.year || current.year;
+    el("genres").value = (details.genres || current.genres).join(", ");
+    el("runtime").value = details.runtime || current.runtime;
+    el("synopsis").value = details.synopsis || current.synopsis;
+
+    // Store TMDB ID on save by embedding it in a hidden slot: we’ll set it when saving
+    // easiest single-file approach: attach it as a property on window
+    window.__tmdbId = details.tmdbId;
+
+    setStatus("TMDB fields filled. Click Save.");
+  } catch (e) {
+    setStatus("TMDB error: " + e.message);
+  }
+};
+
+el("btnUpcLookup").onclick = async () => {
+  // Stub: UPC->Title requires a separate UPC database provider.
+  // This is where you would call your UPC API.
+  const upc = el("upc").value.trim();
+  if (!upc) { setStatus("Enter a UPC first."); return; }
+  setStatus("UPC lookup is stubbed in this single-file version. Provide a UPC API and I will wire it in.");
+};
+
+/* Ensure TMDB ID persists if user enriches then saves */
+const originalReadForm = readForm;
+function readFormWithTmdb() {
+  const data = originalReadForm();
+  const tmdbId = window.__tmdbId || "";
+  return { ...data, tmdbId };
+}
+// Patch save handler to include tmdbId
+el("btnSave").onclick = () => {
+  const data = readFormWithTmdb();
+  if (!data.title) { setStatus("Title is required."); return; }
+
+  if (editingId) {
+    catalog = catalog.map(m => m.id === editingId ? { ...m, ...data } : m);
+    setStatus("Saved changes.");
+  } else {
+    const movie = {
+      id: uid(),
+      createdAt: nowISO(),
+      ...data
+    };
+    catalog.unshift(movie);
+    setStatus("Saved movie.");
+  }
+
+  // clear tmdbId cache after save to avoid accidental reuse
+  window.__tmdbId = "";
+  saveCatalog(catalog);
+  render();
+};
+
+/* ---------------------------
+   Utilities
+---------------------------- */
+function trunc(s, n) { return (s || "").length > n ? (s.slice(0,n-1) + "…") : s; }
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+/* ---------------------------
+   Init
+---------------------------- */
+render();
+</script>
+</body>
+</html>
